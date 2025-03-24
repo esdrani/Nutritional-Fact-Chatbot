@@ -22,23 +22,39 @@ if not openai.api_key:
     raise ValueError("OPENAI_API_KEY is not set. Please set it with a valid key.")
 
 # -------------------------------
-# 3. Load and Clean the Nutrition Dataset
+# 3. Data Preprocessing (Segment 1)
 # -------------------------------
-dataset_folder = "Dataset"
-csv_file_path = os.path.join(dataset_folder, "FOOD-DATA-MERGED_CLEANED.csv")
+# Define your dataset folder (use the absolute path)
+dataset_folder = ""
 
-if not os.path.exists(dataset_folder):
-    os.makedirs(dataset_folder, exist_ok=True)
+# No "esdrani" or "Dataset" folder needed, since the CSVs are in the root
+csv_files = [
+    "FOOD-DATA-GROUP1.csv",
+    "FOOD-DATA-GROUP2.csv",
+    "FOOD-DATA-GROUP3.csv",
+    "FOOD-DATA-GROUP4.csv",
+    "FOOD-DATA-GROUP5.csv"
+]
 
-try:
-    data = pd.read_csv(csv_file_path)
-except Exception as e:
-    raise FileNotFoundError(f"Error loading {csv_file_path}: {e}")
 
-# Remove any 'Unnamed' columns
+# Load and merge the CSV files
+dfs = []
+for file in csv_files:
+    try:
+        df = pd.read_csv(file)
+        print(f"Loaded {file} successfully.")
+        dfs.append(df)
+    except Exception as e:
+        print(f"Error loading {file}: {e}")
+        
+data = pd.concat(dfs, ignore_index=True)
+print("Merged dataset shape before cleaning:", data.shape)
+
+# Remove extra columns (headers starting with 'Unnamed')
 data = data.loc[:, ~data.columns.str.contains('^Unnamed')]
+print("Dataset shape after removing extra columns:", data.shape)
 
-# Standardise the 'food' column: lowercase and trim spaces
+# Standardize the 'food' column (make lowercase and trim spaces)
 if 'food' in data.columns:
     data['food'] = data['food'].str.lower().str.strip()
 else:
@@ -46,12 +62,19 @@ else:
 
 # Remove duplicate food entries
 data = data.drop_duplicates(subset=['food'])
+print("Dataset shape after removing duplicates:", data.shape)
 
-# Convert numeric columns (except 'food') to numbers and fill missing values with 0
+# Convert all columns (except 'food') to numeric and fill missing values with 0
 numeric_cols = data.columns.drop('food')
 for col in numeric_cols:
     data[col] = pd.to_numeric(data[col], errors='coerce')
 data[numeric_cols] = data[numeric_cols].fillna(0)
+
+# (Optional) Print missing values and descriptive statistics for verification
+print("Missing values per column:")
+print(data.isnull().sum())
+print("Descriptive statistics for numeric columns:")
+print(data[numeric_cols].describe())
 
 print("Merged dataset shape:", data.shape)
 example_food = data['food'].iloc[0]
